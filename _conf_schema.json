@@ -1,6 +1,6 @@
 {
   "enabled": {"description": "启用互动限流", "type": "bool", "default": true},
-  "target_qq_ids": {"description": "目标QQ号", "type": "list", "default": ["2290769087"], "hint": "仅限制名单内账号；留空不限制任何账号。"},
+  "target_qq_ids": {"description": "目标QQ号", "type": "list", "default": [], "hint": "仅限制名单内账号；留空不限制任何账号。"},
   "group_ids": {"description": "生效群号", "type": "list", "default": [], "hint": "留空为所有群。机器人、群和账号分别计数，仅处理群聊。"},
   "cooldown_seconds": {"description": "两次放行最短间隔（秒）", "type": "int", "default": 180, "hint": "从放行时刻计算，@、引用、关键词不豁免。0关闭此间隔。"},
   "max_consecutive_rounds": {"description": "连续放行上限", "type": "int", "default": 2, "hint": "达到后暂停。按放行次数计数，不是送达数；0关闭轮数限制。"},

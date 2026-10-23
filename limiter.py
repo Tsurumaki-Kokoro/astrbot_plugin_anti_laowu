@@ -23,7 +23,7 @@ def ids(v):
 @dataclass(frozen=True)
 class Settings:
     enabled: bool = True
-    target_ids: frozenset = frozenset({"2290769087"})
+    target_ids: frozenset = frozenset()
     group_ids: frozenset = frozenset()
     cooldown_seconds: float = 180
     max_rounds: int = 2
@@ -38,7 +38,7 @@ class Settings:
     def from_config(cls, c):
         return cls(
             enabled=bool(c.get("enabled", True)),
-            target_ids=ids(c.get("target_qq_ids", ["2290769087"])),
+            target_ids=ids(c.get("target_qq_ids", [])),
             group_ids=ids(c.get("group_ids", [])),
             cooldown_seconds=number(c, "cooldown_seconds", 180),
             max_rounds=int(number(c, "max_consecutive_rounds", 2, 0, 1000)),

@@ -20,7 +20,7 @@ class LimiterTests(unittest.TestCase):
         self.path = Path(self.tmp.name) / 'state.db'
         self.l = Limiter(self.path, clock=lambda: self.now, rng=lambda: 0.5)
         self.s = Settings()
-        self.key = ('llbot', '306574990', 'group1', '2290769087')
+        self.key = ('llbot', 'test-bot', 'group1', 'target-user')
 
     def tearDown(self):
         self.l.close()
@@ -47,9 +47,9 @@ class LimiterTests(unittest.TestCase):
 
     def test_scope_and_bot_isolation(self):
         self.l.check(self.key, self.s)
-        for key in [('llbot', '306574990', 'group2', '2290769087'),
-                    ('llbot', '306574990', 'group1', 'other'),
-                    ('llbot', 'otherbot', 'group1', '2290769087')]:
+        for key in [('llbot', 'test-bot', 'group2', 'target-user'),
+                    ('llbot', 'test-bot', 'group1', 'other'),
+                    ('llbot', 'otherbot', 'group1', 'target-user')]:
             self.assertTrue(self.l.check(key, self.s).allowed)
 
     def test_restart_preserves_cooldown(self):
@@ -83,6 +83,10 @@ class LimiterTests(unittest.TestCase):
         self.assertEqual(Settings.from_config(defaults), self.s)
         s = Settings.from_config({'allow_probability': 'nan', 'cooldown_seconds': -3, 'max_consecutive_rounds': 'oops'})
         self.assertEqual((s.allow_probability, s.cooldown_seconds, s.max_rounds), (1, 0, 2))
+
+    def test_no_account_is_targeted_by_default(self):
+        self.assertEqual(Settings().target_ids, frozenset())
+        self.assertEqual(Settings.from_config({}).target_ids, frozenset())
 
 
 def load_adapter():
@@ -124,11 +128,11 @@ class AdapterTests(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(cls.guard.priority, sys.maxsize-1)
         with tempfile.TemporaryDirectory() as tmp:
             plugin = object.__new__(cls)
-            plugin.config = {}
+            plugin.config = {"target_qq_ids": ["target-user"]}
             plugin.limiter = Limiter(Path(tmp)/'state.db', clock=lambda: 1000)
             class Event:
                 message_str = 'Mint 你好'
-                user = '2290769087'
+                user = 'target-user'
                 stopped = False
                 extras = None
                 def get_sender_id(self): return self.user
@@ -140,6 +144,10 @@ class AdapterTests(unittest.IsolatedAsyncioTestCase):
                 def should_call_llm(self, v): self.call_llm = v
                 def stop_event(self): self.stopped = True
             first = Event()
+            plugin.config = {}
+            await plugin.guard(first)
+            self.assertIsNone(first.extras)
+            plugin.config = {"target_qq_ids": ["target-user"]}
             await plugin.guard(first)
             self.assertFalse(first.stopped)
             for text in ['Mint 你好', '薄绿', '你好', '这句话引用了机器人']:
