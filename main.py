@@ -6,7 +6,7 @@ from astrbot.api.star import Context, Star, StarTools, register
 from .limiter import Limiter, Settings
 
 
-@register("astrbot_plugin_anti_laowu", "Tsurumaki-Kokoro", "按账号与群限制互动", "0.1.0")
+@register("astrbot_plugin_anti_laowu", "Tsurumaki-Kokoro", "防止机器人之间高强度互动的可配置限流器", "0.1.0")
 class AntiLaowu(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)

@@ -1,6 +1,6 @@
 name: astrbot_plugin_anti_laowu
-display_name: 指定账号互动限流
-desc: 按账号与群限制互动，阻止引用、@和关键词引发的连续互聊。
+display_name: 可配置防老吴器
+desc: 防止机器人与机器人之间的高强度互动，支持按账号、群配置冷却、连续互动上限与暂停时间。
 version: v0.1.0
 author: Tsurumaki-Kokoro
 repo: https://github.com/Tsurumaki-Kokoro/astrbot_plugin_anti_laowu
