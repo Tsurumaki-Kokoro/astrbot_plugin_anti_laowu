@@ -1,14 +1,79 @@
-# astrbot-plugin-helloworld
+# 指定账号互动限流
 
-AstrBot 插件模板 / A template plugin for AstrBot plugin feature
+AstrBot 插件 `astrbot_plugin_anti_laowu`，用于减少机器人与指定 QQ 账号连续互聊。独立于 Chat Plus，不修改其代码。
 
-> [!NOTE]
-> This repo is just a template of [AstrBot](https://github.com/AstrBotDevs/AstrBot) Plugin.
-> 
-> [AstrBot](https://github.com/AstrBotDevs/AstrBot) is an agentic assistant for both personal and group conversations. It can be deployed across dozens of mainstream instant messaging platforms, including QQ, Telegram, Feishu, DingTalk, Slack, LINE, Discord, Matrix, etc. In addition, it provides a reliable and extensible conversational AI infrastructure for individuals, developers, and teams. Whether you need a personal AI companion, an intelligent customer support agent, an automation assistant, or an enterprise knowledge base, AstrBot enables you to quickly build AI applications directly within your existing messaging workflows.
+## 默认行为
 
-# Supports
+只限制 `2290769087`，在每个机器人、每个群中独立计算：
 
-- [AstrBot Repo](https://github.com/AstrBotDevs/AstrBot)
-- [AstrBot Plugin Development Docs (Chinese)](https://docs.astrbot.app/dev/star/plugin-new.html)
-- [AstrBot Plugin Development Docs (English)](https://docs.astrbot.app/en/dev/star/plugin-new.html)
+- 最短 180 秒放行一次。
+- 10 分钟内连续放行达到 2 次后，暂停 300 秒。暂停结束重新计数，仍需满足最短间隔。
+- 普通 @、引用、叫名和关键词不能绕过限制。
+- 未列入名单的用户不受影响，私聊不处理。
+- 拦截时静默终止事件，不发送“正在冷却”消息，避免引发新的来回。
+- 点歌等明确指令默认豁免，可清空白名单实现严格限制。
+
+例如：00:00 放行，03:00 再放行，之后至 08:00 暂停。期间对方反复发消息不会延长暂停。
+
+**放行额度不等于实际回复数。** Chat Plus 可以拒绝已放行的消息；生成或发送失败也不退额度，以免并发请求和失败重试绕过限制。发送后钩子只记录框架回复处理时间，不当作送达回执。对话计数表示该账号的连续放行轮数，不进行语义判断，其他人插话不会自动重置。
+
+## 配置
+
+安装后在插件设置页面配置，所有参数都有 `_conf_schema.json` 定义。
+
+| 参数 | 默认值 | 作用 |
+|---|---|---|
+| enabled | true | 总开关 |
+| target_qq_ids | [2290769087] | 目标账号列表，建议字符串；留空不限制 |
+| group_ids | [] | 生效群白名单，留空所有群 |
+| cooldown_seconds | 180 | 最短放行间隔；0禁用此间隔 |
+| max_consecutive_rounds | 2 | 连续放行上限；0禁用轮数限制 |
+| conversation_reset_seconds | 600 | 距上次放行多久后重置轮数 |
+| pause_seconds | 300 | 达到轮数上限后的暂停时间 |
+| allow_probability | 1.0 | 满足时间条件后再按此概率放行，范围0至1 |
+| exempt_admins | false | 是否豁免名单中的AstrBot管理员 |
+| exempt_commands | 点歌、网易点歌、QQ点歌、歌词 | 正文首词完整匹配，可带/；留空全部限流 |
+| log_decisions | true | 输出放行/拦截原因，不记录正文 |
+
+豁免指令只做完整首词识别，不授予权限，也不保证其他插件会处理该指令。目标账号可能刻意使用这些词避开限流；严格防机器人互聊时请清空。`@bot`不会自动豁免。
+
+非有限或无效数字回退默认值，时间限制在0至86400秒（计数重置至少1秒），轮数上限1000。修改配置后按AstrBot界面要求重载插件。已有时间状态会保留；改变目标名单不会清空旧状态。
+
+## 安装与回滚
+
+1. AstrBot WebUI → 插件 → 从仓库安装，填写本仓库地址。
+2. 在插件配置中确认目标账号、生效群和豁免指令。
+3. 重载并检查日志，再到测试群验证。
+4. 暂停限制可将 `enabled` 设为 false；卸载插件不修改 Chat Plus 的配置。
+
+状态存储在 AstrBot 的 `data/plugin_data/astrbot_plugin_anti_laowu/limiter.sqlite3`，热重载和重启仍保留冷却。若需清空状态，先停用插件再备份并移走该数据库，然后重新启用。
+
+## 拦截位置与边界
+
+消息处理器使用 `priority=sys.maxsize`，高于本次核对的 Chat Plus V1.2.3.hotfix.2 指令过滤器 `sys.maxsize-1` 和群聊处理器 `-1`。调用 `should_call_llm(False)` 及 `stop_event()`，阻止之后的处理器和默认LLM调用。因此引用、@和关键词强制回复通道也会被挡住。
+
+**拦截会终止这条消息的整个后续插件链**，不仅是Chat Plus；所以提供明确指令白名单。其他插件若以相同/更高优先级先发送、直接异步发送或在别的事件阶段工作，本插件不能追回已发出的消息。框架优先级或 Chat Plus 实现更新后应重新验证。
+
+保留原始来信供记忆插件采集、但只阻止AI回复，需要另一种集成方式；本版本不声称支持。按账号限流不会限制别人主动点名该账号导致的回复，也不会限制另一台机器人本身的行为。
+
+## 日志
+
+```
+[anti_laowu] allow reason=admitted group=... user=... wait_seconds=0.0 rounds=1
+[anti_laowu] block reason=cooldown group=... user=... wait_seconds=120.0 rounds=1
+[anti_laowu] block reason=conversation_pause group=... user=... wait_seconds=200.0 rounds=2
+```
+
+其他原因：`probability`、`clock_rollback`、`exempt_command`。时间使用持久化墙上时钟，系统时间回退时保守拦截直至追平；大幅向前校时可能使冷却提前到期。
+
+## 开发与验证
+
+无第三方运行依赖，Python标准库SQLite保存状态。适配AstrBot >=4.29.1，当前声明支持OneBot/aiocqhttp。
+
+```
+python -m unittest discover -s tests -v
+```
+
+测试涵盖冷却边界、两轮暂停、重启持久化、隔离、概率、时钟回退、回调不退额度，以及事件提前拦截。适配器测试使用协议替身，不能替代真实框架验证。版本交付记录见 `VALIDATION.md`。
+
+官方参考：[消息事件与停止传播](https://docs.astrbot.app/dev/star/guides/listen-message-event.html)。

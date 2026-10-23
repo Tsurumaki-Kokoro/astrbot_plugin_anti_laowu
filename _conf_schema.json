@@ -1,0 +1,13 @@
+{
+  "enabled": {"description": "启用互动限流", "type": "bool", "default": true},
+  "target_qq_ids": {"description": "目标QQ号", "type": "list", "default": ["2290769087"], "hint": "仅限制名单内账号；留空不限制任何账号。"},
+  "group_ids": {"description": "生效群号", "type": "list", "default": [], "hint": "留空为所有群。机器人、群和账号分别计数，仅处理群聊。"},
+  "cooldown_seconds": {"description": "两次放行最短间隔（秒）", "type": "int", "default": 180, "hint": "从放行时刻计算，@、引用、关键词不豁免。0关闭此间隔。"},
+  "max_consecutive_rounds": {"description": "连续放行上限", "type": "int", "default": 2, "hint": "达到后暂停。按放行次数计数，不是送达数；0关闭轮数限制。"},
+  "conversation_reset_seconds": {"description": "对话计数重置间隔（秒）", "type": "int", "default": 600, "hint": "距上次放行达到此间隔重置轮数。被拦消息不延长时间。"},
+  "pause_seconds": {"description": "达到连续上限后的暂停（秒）", "type": "int", "default": 300, "hint": "从最后一次放行计算；暂停结束重置轮数，仍需满足冷却。"},
+  "allow_probability": {"description": "满足限流条件后的放行概率", "type": "float", "default": 1.0, "hint": "0至1，默认不增加随机漏回。只影响目标账号，放行不保证后续插件回复。"},
+  "exempt_admins": {"description": "目标账号是AstrBot管理员时豁免", "type": "bool", "default": false},
+  "exempt_commands": {"description": "明确指令豁免白名单", "type": "list", "default": ["点歌", "网易点歌", "QQ点歌", "歌词"], "hint": "仅当前正文第一个词完整匹配，允许/前缀；不读取引用。留空全部限流。此项可被目标账号刻意使用，不是权限授权。"},
+  "log_decisions": {"description": "记录放行与拦截原因", "type": "bool", "default": true, "hint": "只记群号、账号、等待时间与轮数，不记正文。"}
+}

@@ -1,24 +1,51 @@
-from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
-from astrbot.api.star import Context, Star, register
-from astrbot.api import logger
+"""Account-scoped guard; runs before Chat Plus without changing its code."""
+import sys
+from astrbot.api import AstrBotConfig, logger
+from astrbot.api.event import AstrMessageEvent, filter
+from astrbot.api.star import Context, Star, StarTools, register
+from .limiter import Limiter, Settings
 
-@register("helloworld", "YourName", "一个简单的 Hello World 插件", "1.0.0")
-class MyPlugin(Star):
-    def __init__(self, context: Context):
+
+@register("astrbot_plugin_anti_laowu", "Tsurumaki-Kokoro", "按账号与群限制互动", "0.1.0")
+class AntiLaowu(Star):
+    def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
+        self.config = config
+        self.limiter = Limiter(StarTools.get_data_dir() / "limiter.sqlite3")
 
-    async def initialize(self):
-        """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
+    @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE, priority=sys.maxsize)
+    async def guard(self, event: AstrMessageEvent):
+        s = Settings.from_config(self.config)
+        user, group = str(event.get_sender_id()), str(event.get_group_id())
+        if not s.enabled or user not in s.target_ids:
+            return
+        if s.group_ids and group not in s.group_ids:
+            return
+        if s.exempt_admins and event.is_admin():
+            return
+        body = (event.message_str or "").strip()
+        command = body.removeprefix("/").split(maxsplit=1)[0] if body else ""
+        if command in s.exempt_commands:
+            if s.log_decisions:
+                logger.info(f"[anti_laowu] allow reason=exempt_command group={group} user={user}")
+            return
+        key = (event.get_platform_id(), str(event.get_self_id()), group, user)
+        d = self.limiter.check(key, s)
+        if s.log_decisions:
+            logger.info(f"[anti_laowu] {'allow' if d.allowed else 'block'} reason={d.reason} "
+                        f"group={group} user={user} wait_seconds={d.wait_seconds:.1f} rounds={d.rounds}")
+        if d.allowed:
+            event.set_extra("anti_laowu_admission", d.admission_id)
+        else:
+            event.should_call_llm(False)
+            event.stop_event()
 
-    # 注册指令的装饰器。指令名为 helloworld。注册成功后，发送 `/helloworld` 就会触发这个指令，并回复 `你好, {user_name}!`
-    @filter.command("helloworld")
-    async def helloworld(self, event: AstrMessageEvent):
-        """这是一个 hello world 指令""" # 这是 handler 的描述，将会被解析方便用户了解插件内容。建议填写。
-        user_name = event.get_sender_name()
-        message_str = event.message_str # 用户发的纯文本消息字符串
-        message_chain = event.get_messages() # 用户所发的消息的消息链 # from astrbot.api.message_components import *
-        logger.info(message_chain)
-        yield event.plain_result(f"Hello, {user_name}, 你发了 {message_str}!") # 发送一条纯文本消息
+    @filter.after_message_sent()
+    async def record_response(self, event: AstrMessageEvent):
+        admission = event.get_extra("anti_laowu_admission")
+        result = event.get_result()
+        if admission and result is not None and result.chain:
+            self.limiter.record_response(admission)
 
     async def terminate(self):
-        """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
+        self.limiter.close()

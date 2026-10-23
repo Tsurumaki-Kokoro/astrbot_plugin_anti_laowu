@@ -1,0 +1,11 @@
+# v0.1.0 验证记录
+
+2026-10-23，尚未安装到生产服务。
+
+- Python unittest：10项全部通过，覆盖冷却、连续轮数暂停、重启保留状态、群/账号/机器人隔离、概率边界、时钟回退、回调不返还额度、配置默认值和消息拦截。
+- 本地Windows沙箱中的asyncio初始化因回环socketpair阻塞；允许本机事件循环初始化后，完整测试0.153秒通过。
+- 在服务器AstrBot v4.29.1已有Python环境中，从临时目录导入实际插件，使用真实AstrMessageEvent的stop_event/is_stopped/should_call_llm进行离线检查：第一次放行、同账号第二次被冷却拦截、普通账号不受影响，全部通过。
+- 核对本机框架star_handler.py按priority降序执行，star_request.py在事件停止后跳过后续处理器；本机Chat Plus指令过滤优先级sys.maxsize-1、群聊处理优先级-1，本插件使用sys.maxsize。
+- `git diff --check`通过。
+
+未向QQ群发测试消息，未触发真实戳人、禁言、点歌或LLM请求；未修改现有AstrBot服务配置，未重启生产服务。真实多人群聊的并发、第三方插件同优先级行为和发送链路，仍需安装后的测试群验收。
