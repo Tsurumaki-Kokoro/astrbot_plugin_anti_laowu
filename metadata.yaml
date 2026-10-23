@@ -1,9 +1,15 @@
 name: astrbot_plugin_anti_laowu
 display_name: 可配置防老吴器
 desc: 防止机器人与机器人之间的高强度互动，支持按账号、群配置冷却、连续互动上限与暂停时间。
-version: v0.1.0
+short_desc: 给机器人之间停不下来的互聊加个冷却。
+version: 0.1.0
 author: Tsurumaki-Kokoro
 repo: https://github.com/Tsurumaki-Kokoro/astrbot_plugin_anti_laowu
 astrbot_version: ">=4.29.1"
 support_platforms:
   - aiocqhttp
+tags:
+  - 群聊
+  - 限流
+  - 机器人互动
+social_link: https://github.com/Tsurumaki-Kokoro

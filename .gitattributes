@@ -1,0 +1,12 @@
+* text=auto
+*.py text eol=lf
+*.md text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.png binary
+tests/ export-ignore
+scripts/ export-ignore
+VALIDATION.md export-ignore
+RELEASE.md export-ignore
+.gitignore export-ignore
+.gitattributes export-ignore
